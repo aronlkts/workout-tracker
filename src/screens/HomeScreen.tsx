@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import type { Routine } from '../db/schema';
 import { useAppData } from '../state/AppData';
 import { buildSession } from '../lib/session';
 import { suggestNextRoutine, weekStreak, weekSummary } from '../lib/overview';
@@ -33,14 +34,25 @@ export function HomeScreen() {
   const nextRoutine = active.find((r) => r.id === nextId) ?? active[0] ?? null;
 
   const recent = sessions.filter((s) => s.finishedAt !== null).slice(0, 3);
+  const others = active.filter((r) => r.id !== nextRoutine?.id);
 
-  const start = () => {
-    if (!nextRoutine) return;
+  // When each routine was last trained, so picking today's is an informed choice.
+  const lastTrained = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of sessions) {
+      if (s.finishedAt === null || !s.routineId) continue;
+      const seen = map.get(s.routineId);
+      if (!seen || s.date > seen) map.set(s.routineId, s.date);
+    }
+    return map;
+  }, [sessions]);
+
+  const start = (routine: Routine | null) => {
     void saveSession(
       buildSession(
-        nextRoutine,
-        nextRoutine.name,
-        nextRoutine.exerciseIds,
+        routine,
+        routine?.name ?? 'Freestyle',
+        routine?.exerciseIds ?? [],
         exercises,
         sessions,
         settings,
@@ -99,7 +111,11 @@ export function HomeScreen() {
                     ? 'weights pre-filled from last time'
                     : 'first time through'}
                 </div>
-                <button type="button" className="btn btn-sm gap-16" onClick={start}>
+                <button
+                  type="button"
+                  className="btn btn-sm gap-16"
+                  onClick={() => start(nextRoutine)}
+                >
                   Start workout
                 </button>
               </div>
@@ -110,6 +126,49 @@ export function HomeScreen() {
                   Build one in Profile → Routines, then it will be waiting here.
                 </div>
               </div>
+            )}
+
+            {!activeSession && (
+              <>
+                <div className="section-title gap-24" style={{ marginBottom: 10 }}>
+                  {nextRoutine ? 'Or train something else' : 'Start a session'}
+                </div>
+                <div className="stack">
+                  {others.map((routine) => {
+                    const last = lastTrained.get(routine.id);
+                    return (
+                      <button
+                        key={routine.id}
+                        type="button"
+                        className="row"
+                        onClick={() => start(routine)}
+                      >
+                        <div>
+                          <div className="row-title">{routine.name}</div>
+                          <div className="row-detail">
+                            {routine.exerciseIds.length}{' '}
+                            {plural(routine.exerciseIds.length, 'exercise')} ·{' '}
+                            {last ? relativeLabel(last, today).toLowerCase() : 'not trained yet'}
+                          </div>
+                        </div>
+                        <Icon name="play" size={14} color="var(--accent)" />
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    className="row card-dashed"
+                    onClick={() => start(null)}
+                  >
+                    <div>
+                      <div className="row-title">Freestyle session</div>
+                      <div className="row-detail">Start empty, add exercises as you go</div>
+                    </div>
+                    <Icon name="plusCircle" size={16} color="var(--text-dim)" />
+                  </button>
+                </div>
+              </>
             )}
 
             <div className="tiles gap-20">
