@@ -10,6 +10,8 @@ interface SetCardProps {
   suggestion?: SetSuggestion;
   exercise: Exercise;
   settings: Settings;
+  /** Carried load for this lift, 0 when it is not a bodyweight movement. */
+  bodyweight: number;
   onChange: (patch: Partial<SetLog>) => void;
 }
 
@@ -19,6 +21,7 @@ export function SetCard({
   suggestion,
   exercise,
   settings,
+  bodyweight,
   onChange,
 }: SetCardProps) {
   const step = exercise.increment || settings.defaultIncrement;
@@ -56,7 +59,9 @@ export function SetCard({
 
       <div className="set-fields">
         <div className="field">
-          <span className="label">Weight ({settings.unit})</span>
+          <span className="label">
+            {bodyweight > 0 ? `Added (${settings.unit})` : `Weight (${settings.unit})`}
+          </span>
           <div className="stepper">
             <button
               type="button"
@@ -106,6 +111,14 @@ export function SetCard({
           />
         </div>
       </div>
+
+      {bodyweight > 0 && (
+        <div className="note" style={{ marginTop: 8 }}>
+          Total {fmtWeight(bodyweight + set.weight)}
+          {settings.unit} · bodyweight {fmtWeight(bodyweight)}
+          {settings.unit}
+        </div>
+      )}
 
       {suggestion?.action === 'hold' && (
         <div className="note" style={{ marginTop: 8 }}>

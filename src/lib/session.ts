@@ -21,6 +21,7 @@ export function buildSession(
     date: todayISO(),
     startedAt: Date.now(),
     finishedAt: null,
+    bodyweight: settings.bodyweight || undefined,
     exercises: exerciseIds.flatMap((exerciseId) => {
       const exercise = byId.get(exerciseId);
       if (!exercise) return [];

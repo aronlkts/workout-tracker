@@ -19,7 +19,13 @@ IndexedDB on the device you logged it on and never leaves it.
   set, session count, a top-set trend chart and the full session log.
 - **Home** — what to train next (the routine you have left longest), sets and
   volume this week, and your week streak.
-- **Profile** — the progression thresholds, your routines and exercise library,
+- **Bodyweight** — set yours in Profile and lifts marked as carrying it (pull-ups,
+  push-ups, leg raises) count it as load, with the weight box recording what you
+  add on top. Each session stores the bodyweight it was logged at, so gaining
+  weight never rewrites old numbers. Timed holds are deliberately left unmarked,
+  since bodyweight times seconds is not volume.
+- **Profile** — the progression thresholds, your bodyweight, your routines and
+  exercise library,
   backup export/restore, and a one-tap install of the training block. Routines
   are ordered lists where any entry can be linked to the next as a superset, so
   the same lift can be paired on one day and a straight set on another.

@@ -16,10 +16,20 @@ import { StatTile } from '../components/StatTile';
 export function SessionScreen() {
   const { sessionId = '' } = useParams();
   const navigate = useNavigate();
-  const { sessions, settings, activeSession, exerciseById, saveSession, deleteSession } =
-    useAppData();
+  const {
+    sessions,
+    exercises,
+    settings,
+    activeSession,
+    exerciseById,
+    saveSession,
+    deleteSession,
+  } = useAppData();
 
   const session = sessions.find((s) => s.id === sessionId);
+  const bodyweightIds = new Set(
+    exercises.filter((e) => e.bodyweightLoad).map((e) => e.id),
+  );
 
   if (!session) {
     return (
@@ -73,7 +83,7 @@ export function SessionScreen() {
           <StatTile label="Sets" value={String(sessionSetCount(session))} />
           <StatTile
             label="Volume"
-            value={fmtVolume(sessionVolume(session))}
+            value={fmtVolume(sessionVolume(session, bodyweightIds, settings.bodyweight))}
             sub={settings.unit}
           />
           <StatTile

@@ -149,6 +149,25 @@ export function ProfileScreen() {
 
           <div className="form-row">
             <div style={{ flex: 1 }}>
+              <div className="form-label">Your bodyweight</div>
+              <div className="form-hint">
+                Counted as the load on pull-ups, push-ups and leg raises. Sessions record
+                it as it was on the day, so updating it never rewrites old numbers.
+              </div>
+            </div>
+            <NumberInput
+              value={settings.bodyweight || null}
+              onCommit={(v) => patch({ bodyweight: v ?? 0 })}
+              className="input input-narrow"
+              decimal
+              allowEmpty
+              placeholder="—"
+              aria-label="Your bodyweight"
+            />
+          </div>
+
+          <div className="form-row">
+            <div style={{ flex: 1 }}>
               <div className="form-label">Default weight step</div>
               <div className="form-hint">
                 Used when an exercise has no step of its own.
@@ -567,6 +586,22 @@ function ExerciseSheet({
           onChange={(e) => setDraft({ ...draft, muscleGroup: e.target.value })}
           aria-label="Muscle group"
         />
+        <div className="form-row">
+          <div style={{ flex: 1 }}>
+            <div className="form-label">Carries your bodyweight</div>
+            <div className="form-hint">
+              For pull-ups and the like: the weight box records what you add on top.
+            </div>
+          </div>
+          <button
+            type="button"
+            className="toggle"
+            aria-pressed={Boolean(draft.bodyweightLoad)}
+            onClick={() => setDraft({ ...draft, bodyweightLoad: !draft.bodyweightLoad })}
+          >
+            {draft.bodyweightLoad ? 'Yes' : 'No'}
+          </button>
+        </div>
         <div className="form-row">
           <div className="form-label">Rest between sets (s)</div>
           <NumberInput

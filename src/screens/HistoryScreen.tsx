@@ -12,13 +12,24 @@ export function HistoryScreen() {
   const { sessions, exercises, settings } = useAppData();
   const [tab, setTab] = useState<Tab>('lifts');
 
+  const bodyweightIds = useMemo(
+    () => new Set(exercises.filter((e) => e.bodyweightLoad).map((e) => e.id)),
+    [exercises],
+  );
+
   const lifts = useMemo(
     () =>
       exercises
-        .map((exercise) => ({ exercise, summary: summarise(sessions, exercise.id) }))
+        .map((exercise) => ({
+          exercise,
+          summary: summarise(sessions, exercise.id, {
+            bodyweightLoad: exercise.bodyweightLoad,
+            fallback: settings.bodyweight,
+          }),
+        }))
         .filter((row) => row.summary.sessionCount > 0)
         .sort((a, b) => (b.summary.lastDate ?? '').localeCompare(a.summary.lastDate ?? '')),
-    [exercises, sessions],
+    [exercises, sessions, settings.bodyweight],
   );
 
   const done = sessions.filter((s) => s.finishedAt !== null);
@@ -111,7 +122,7 @@ export function HistoryScreen() {
                   <div className="row-detail">
                     {formatShort(session.date)} · {sessionSetCount(session)}{' '}
                     {plural(sessionSetCount(session), 'set')} ·{' '}
-                    {fmtVolume(sessionVolume(session))}
+                    {fmtVolume(sessionVolume(session, bodyweightIds, settings.bodyweight))}
                     {settings.unit}
                   </div>
                 </div>

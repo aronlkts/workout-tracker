@@ -23,7 +23,14 @@ export function HomeScreen() {
   const navigate = useNavigate();
 
   const today = todayISO();
-  const week = useMemo(() => weekSummary(sessions, today), [sessions, today]);
+  const bodyweightIds = useMemo(
+    () => new Set(exercises.filter((e) => e.bodyweightLoad).map((e) => e.id)),
+    [exercises],
+  );
+  const week = useMemo(
+    () => weekSummary(sessions, today, bodyweightIds, settings.bodyweight),
+    [sessions, today, bodyweightIds, settings.bodyweight],
+  );
   const streak = useMemo(() => weekStreak(sessions, today), [sessions, today]);
 
   const active = routines.filter((r) => !r.archived);
@@ -206,7 +213,7 @@ export function HomeScreen() {
                       <div className="row-detail">
                         {relativeLabel(session.date, today)} · {sessionSetCount(session)}{' '}
                         {plural(sessionSetCount(session), 'set')} ·{' '}
-                        {fmtVolume(sessionVolume(session))}
+                        {fmtVolume(sessionVolume(session, bodyweightIds, settings.bodyweight))}
                         {settings.unit}
                       </div>
                     </div>

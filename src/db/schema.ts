@@ -12,6 +12,12 @@ export interface Exercise {
   cue?: string;
   /** Recommended rest between sets, in seconds. */
   restSeconds?: number;
+  /**
+   * Your own weight is part of the load, and the weight field records what is
+   * added on top. Deliberately not set for timed holds, where bodyweight times
+   * seconds is not volume.
+   */
+  bodyweightLoad?: boolean;
   archived: boolean;
   createdAt: number;
 }
@@ -37,6 +43,8 @@ export interface Session {
   date: string;
   startedAt: number;
   finishedAt: number | null;
+  /** Your bodyweight when this was logged, so old sessions keep their maths. */
+  bodyweight?: number;
   exercises: SessionExercise[];
 }
 
@@ -90,6 +98,8 @@ export interface Settings {
   defaultIncrement: number;
   /** Week numbers on the log header count from here. */
   programStart: string;
+  /** Used as the load on bodyweight lifts. 0 means not set. */
+  bodyweight: number;
   /** Last session left this much in reserve or more, so add weight. */
   progressRIR: number;
   /** Left this much or less, so hold the weight and chase reps. */
@@ -100,6 +110,7 @@ export const DEFAULT_SETTINGS: Settings = {
   unit: 'kg',
   defaultIncrement: 2.5,
   programStart: '',
+  bodyweight: 0,
   progressRIR: 2,
   holdRIR: 1,
 };

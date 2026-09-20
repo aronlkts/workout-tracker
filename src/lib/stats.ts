@@ -28,6 +28,20 @@ export function weightForReps(oneRM: number, reps: number, rir = 0): number {
 export const completedSets = (sets: SetLog[]): SetLog[] =>
   sets.filter((s) => s.done && s.reps > 0);
 
+/** How the lifter's own weight is folded into a set's load. */
+export interface LoadContext {
+  bodyweightLoad?: boolean;
+  /** Used when a session predates bodyweight being recorded. */
+  fallback?: number;
+}
+
+/** Adds the carried weight onto each set, leaving the originals untouched. */
+export const effectiveSets = (sets: SetLog[], carried: number): SetLog[] =>
+  carried > 0 ? sets.map((s) => ({ ...s, weight: s.weight + carried })) : sets;
+
+const carriedFor = (session: Session, ctx: LoadContext): number =>
+  ctx.bodyweightLoad ? (session.bodyweight ?? ctx.fallback ?? 0) : 0;
+
 export function bestE1RM(sets: SetLog[]): number {
   return completedSets(sets).reduce(
     (best, s) => Math.max(best, estimate1RM(s.weight, s.reps, s.rir)),
@@ -62,7 +76,10 @@ export interface ExercisePoint {
   sessionId: ID;
   date: string;
   startedAt: number;
+  /** Sets with bodyweight already folded in, where the lift carries it. */
   sets: SetLog[];
+  /** Heaviest weight added on top of bodyweight; 0 means pure bodyweight. */
+  addedMax: number;
   e1rm: number;
   volume: number;
   topSet: SetLog | null;
@@ -71,24 +88,30 @@ export interface ExercisePoint {
 }
 
 /** One point per finished session that contains this exercise, oldest first. */
-export function exerciseSeries(sessions: Session[], exerciseId: ID): ExercisePoint[] {
+export function exerciseSeries(
+  sessions: Session[],
+  exerciseId: ID,
+  ctx: LoadContext = {},
+): ExercisePoint[] {
   return sessions
     .filter((s) => s.finishedAt !== null)
     .map((session) => {
       const entry = session.exercises.find((e) => e.exerciseId === exerciseId);
       if (!entry) return null;
-      const done = completedSets(entry.sets);
-      if (!done.length) return null;
+      const raw = completedSets(entry.sets);
+      if (!raw.length) return null;
+      const sets = effectiveSets(entry.sets, carriedFor(session, ctx));
       return {
         sessionId: session.id,
         date: session.date,
         startedAt: session.startedAt,
-        sets: entry.sets,
-        e1rm: bestE1RM(entry.sets),
-        volume: volume(entry.sets),
-        topSet: topSet(entry.sets),
-        avgRIR: averageRIR(entry.sets),
-        reps: totalReps(entry.sets),
+        sets,
+        addedMax: raw.reduce((m, s) => Math.max(m, s.weight), 0),
+        e1rm: bestE1RM(sets),
+        volume: volume(sets),
+        topSet: topSet(sets),
+        avgRIR: averageRIR(sets),
+        reps: totalReps(sets),
       };
     })
     .filter((p): p is ExercisePoint => p !== null)
@@ -109,8 +132,12 @@ export interface ExerciseSummary {
   latestAvgRIR: number | null;
 }
 
-export function summarise(sessions: Session[], exerciseId: ID): ExerciseSummary {
-  const points = exerciseSeries(sessions, exerciseId);
+export function summarise(
+  sessions: Session[],
+  exerciseId: ID,
+  ctx: LoadContext = {},
+): ExerciseSummary {
+  const points = exerciseSeries(sessions, exerciseId, ctx);
   const last = points.at(-1) ?? null;
   const prev = points.at(-2) ?? null;
   const heaviest = points.reduce<SetLog | null>((best, p) => {
@@ -152,8 +179,16 @@ export function lastPerformance(
   return null;
 }
 
-export function sessionVolume(session: Session): number {
-  return session.exercises.reduce((sum, e) => sum + volume(e.sets), 0);
+export function sessionVolume(
+  session: Session,
+  bodyweightIds?: Set<ID>,
+  fallback = 0,
+): number {
+  const carried = session.bodyweight ?? fallback;
+  return session.exercises.reduce((sum, e) => {
+    const add = bodyweightIds?.has(e.exerciseId) ? carried : 0;
+    return sum + volume(effectiveSets(e.sets, add));
+  }, 0);
 }
 
 export function sessionSetCount(session: Session): number {

@@ -146,9 +146,19 @@ function ActiveLog({
     [exercise, sessions, settings, session.id],
   );
   const summary = useMemo(
-    () => (exercise ? summarise(sessions, exercise.id) : null),
-    [exercise, sessions],
+    () =>
+      exercise
+        ? summarise(sessions, exercise.id, {
+            bodyweightLoad: exercise.bodyweightLoad,
+            fallback: settings.bodyweight,
+          })
+        : null,
+    [exercise, sessions, settings.bodyweight],
   );
+
+  // What this lift carries: the lifter, when the lift moves the lifter.
+  const carried =
+    exercise?.bodyweightLoad && settings.bodyweight > 0 ? settings.bodyweight : 0;
   const tip = useMemo(
     () => (exercise && suggestions.length ? progressionTip(suggestions, exercise, settings) : ''),
     [exercise, suggestions, settings],
@@ -332,6 +342,7 @@ function ActiveLog({
                   suggestion={suggestions[i]}
                   exercise={exercise}
                   settings={settings}
+                  bodyweight={carried}
                   onChange={(patch) => changeSet(i, patch)}
                 />
               ))}

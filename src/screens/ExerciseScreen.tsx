@@ -16,13 +16,23 @@ export function ExerciseScreen() {
   const { sessions, routines, settings, exerciseById } = useAppData();
 
   const exercise = exerciseById(exerciseId);
-  const summary = useMemo(() => summarise(sessions, exerciseId), [sessions, exerciseId]);
+  const summary = useMemo(
+    () =>
+      summarise(sessions, exerciseId, {
+        bodyweightLoad: exercise?.bodyweightLoad,
+        fallback: settings.bodyweight,
+      }),
+    [sessions, exerciseId, exercise?.bodyweightLoad, settings.bodyweight],
+  );
 
   const recent = summary.points.slice(-WINDOW);
 
-  // Hangs, leg raises and jumps carry no load, so weight-based figures are
-  // meaningless for them; reps are what actually progresses.
-  const bodyweight = summary.sessionCount > 0 && summary.bestE1RM === 0;
+  // Reps are the honest headline when nothing has been added on top: an
+  // unloaded hang or leg raise has no meaningful one-rep max.
+  const repsMode =
+    summary.sessionCount > 0 &&
+    (summary.bestE1RM === 0 ||
+      (Boolean(exercise?.bodyweightLoad) && summary.points.every((p) => p.addedMax === 0)));
   const latestReps = summary.latestTopSet?.reps ?? 0;
   const previousReps = summary.points.at(-2)?.topSet?.reps ?? 0;
   const repsDelta = summary.points.length > 1 ? latestReps - previousReps : 0;
@@ -32,8 +42,8 @@ export function ExerciseScreen() {
     .map((p) => ({
       key: p.sessionId,
       label: `W${weekNumber(p.date, settings.programStart)}`,
-      value: bodyweight ? p.topSet!.reps : p.topSet!.weight,
-      caption: bodyweight ? String(p.topSet!.reps) : fmtWeight(p.topSet!.weight),
+      value: repsMode ? p.topSet!.reps : p.topSet!.weight,
+      caption: repsMode ? String(p.topSet!.reps) : fmtWeight(p.topSet!.weight),
     }));
 
   const routine = routines.find((r) => r.entries.some((e) => e.exerciseId === exerciseId));
@@ -81,7 +91,7 @@ export function ExerciseScreen() {
         ) : (
           <>
             <div className="tiles">
-              {bodyweight ? (
+              {repsMode ? (
                 <StatTile
                   label="Top Reps"
                   value={String(latestReps)}
@@ -105,7 +115,7 @@ export function ExerciseScreen() {
                 value={
                   !summary.latestTopSet
                     ? '—'
-                    : bodyweight
+                    : repsMode
                       ? `${summary.latestTopSet.reps} reps`
                       : `${fmtWeight(summary.latestTopSet.weight)} × ${summary.latestTopSet.reps}`
                 }
@@ -126,7 +136,7 @@ export function ExerciseScreen() {
               <>
                 <div className="spread gap-20" style={{ alignItems: 'baseline', marginBottom: 12 }}>
                   <span className="section-title">
-                    {bodyweight ? 'Top set reps' : 'Top set weight'}
+                    {repsMode ? 'Top set reps' : 'Top set weight'}
                   </span>
                   <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 500 }}>
                     last {bars.length} {plural(bars.length, 'session')}
@@ -136,7 +146,7 @@ export function ExerciseScreen() {
                   <BarChart bars={bars} />
                 </div>
                 <p className="note" style={{ margin: '8px 2px 0' }}>
-                  {trendLine(recent, settings.programStart, settings.unit, bodyweight)}
+                  {trendLine(recent, settings.programStart, settings.unit, repsMode)}
                 </p>
               </>
             )}
@@ -212,17 +222,17 @@ function trendLine(
   points: ExercisePoint[],
   programStart: string,
   unit: string,
-  bodyweight: boolean,
+  repsMode: boolean,
 ): string {
   const first = points[0];
   const last = points.at(-1);
   if (!first?.topSet || !last?.topSet || first === last) return '';
 
   const since = `Week ${weekNumber(first.date, programStart)}`;
-  const delta = bodyweight
+  const delta = repsMode
     ? last.topSet.reps - first.topSet.reps
     : last.topSet.weight - first.topSet.weight;
-  const amount = bodyweight
+  const amount = repsMode
     ? `${Math.abs(delta)} ${plural(Math.abs(delta), 'rep')}`
     : `${fmtWeight(Math.abs(delta))}${unit}`;
 

@@ -105,6 +105,17 @@ export function ExercisePicker({
           />
         </div>
         <div className="form-row">
+          <div className="form-label">Carries your bodyweight</div>
+          <button
+            type="button"
+            className="toggle"
+            aria-pressed={Boolean(draft.bodyweightLoad)}
+            onClick={() => setDraft({ ...draft, bodyweightLoad: !draft.bodyweightLoad })}
+          >
+            {draft.bodyweightLoad ? 'Yes' : 'No'}
+          </button>
+        </div>
+        <div className="form-row">
           <div className="form-label">Rest between sets (s)</div>
           <NumberInput
             value={draft.restSeconds ?? null}

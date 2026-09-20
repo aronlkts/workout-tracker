@@ -252,23 +252,43 @@ test('superset pairing belongs to the day, not to the exercise', () => {
     );
 
   assert.deepEqual(pairs('Mon'), [['Calf Raise', 'Tibialis Raise']]);
-  assert.deepEqual(pairs('Tue'), [
-    ['Cable Rear Delt Fly', 'Cable Curl'],
-    ['Cable External Rotation', 'Wrist Extensor Eccentrics'],
+  assert.deepEqual(pairs('Tue'), [['Cable Rear Delt Fly', 'Cable Curl']]);
+  assert.deepEqual(pairs('Wed'), [
+    ['Cable Overhead Triceps Extension', 'Cable Rear Delt Fly'],
   ]);
   assert.deepEqual(pairs('Thu'), [['Cable Triceps Pushdown', 'Face Pull']]);
+  assert.deepEqual(pairs('Fri'), [], 'Friday is straight sets throughout');
 
-  // The very same calf raise: paired on Monday, a straight set on Tuesday.
-  const calf = exercises.find((e) => e.name === 'Calf Raise')!;
-  const on = (prefix: string) =>
-    routine(prefix).entries.find((e) => e.exerciseId === calf.id)!;
-  assert.equal(on('Mon').supersetWithNext, true);
-  assert.ok(!on('Tue').supersetWithNext);
-
-  // And rear delt fly is the B lift twice, behind different partners.
+  // The very same rear delt fly: the A lift on Tuesday, the B lift on
+  // Wednesday, behind a different partner each time.
   const fly = exercises.find((e) => e.name === 'Cable Rear Delt Fly')!;
-  assert.ok(pairs('Tue').some(([a]) => a === fly.name));
-  assert.deepEqual(pairs('Wed'), [['Cable Overhead Triceps Extension', 'Cable Rear Delt Fly']]);
+  const entryOn = (prefix: string) =>
+    routine(prefix).entries.find((e) => e.exerciseId === fly.id)!;
+  assert.equal(entryOn('Tue').supersetWithNext, true);
+  assert.ok(!entryOn('Wed').supersetWithNext);
+});
+
+test('the plan matches the revised document', () => {
+  const { exercises, routines } = buildPlan([], []);
+  const name = new Map(exercises.map((e) => [e.id, e.name]));
+  const lifts = (prefix: string) =>
+    routines.find((r) => r.name.startsWith(prefix))!.entries.map((e) => name.get(e.exerciseId));
+
+  // Monday traded the lateral raise for a leg extension.
+  assert.ok(lifts('Mon').includes('Leg Extension'));
+  assert.ok(!lifts('Mon').includes('Cable Lateral Raise'));
+  // Tuesday's cable external rotation became the banded shoulder block.
+  assert.ok(lifts('Tue').includes('Banded External Rotation at 90°'));
+  assert.ok(lifts('Tue').includes('Band Pull-Apart'));
+  assert.ok(lifts('Tue').includes('Banded Y-Raise'));
+  assert.ok(!lifts('Tue').includes('Calf Raise'));
+  // Neck moved to Sunday, which this app does not track.
+  assert.ok(routines.every((r) => !lifts(r.name.slice(0, 3)).includes('Neck Harness')));
+  // Friday swapped back extension and Pallof for rotation and cable crunch.
+  assert.ok(lifts('Fri').includes('Half-Kneeling Landmine Rotation'));
+  assert.ok(lifts('Fri').includes('Cable Crunch'));
+  assert.ok(!lifts('Fri').includes('45° Back Extension'));
+  assert.ok(!lifts('Fri').includes('Pallof Press'));
 });
 
 test('reinstalling the plan keeps exercise ids so history survives', () => {
@@ -283,4 +303,46 @@ test('every planned exercise carries a rest time', () => {
   const { exercises } = buildPlan([], []);
   const missing = exercises.filter((e) => !e.restSeconds).map((e) => e.name);
   assert.deepEqual(missing, []);
+});
+
+test('bodyweight counts as load on the lifts that carry it', () => {
+  const pullUp: Exercise = { ...bench, id: 'pull', name: 'Weighted Pull-Up', bodyweightLoad: true };
+  const logged: Session = {
+    ...session('s1', '2026-09-23', []),
+    bodyweight: 74,
+    exercises: [{ exerciseId: pullUp.id, sets: [set(5, 6, 2)] }],
+  };
+
+  const carried = summarise([logged], pullUp.id, { bodyweightLoad: true });
+  const bare = summarise([logged], pullUp.id);
+
+  assert.equal(carried.latestTopSet?.weight, 79, '74 kg of lifter plus 5 kg hung on');
+  assert.equal(carried.currentE1RM.toFixed(1), estimate1RM(79, 6, 2).toFixed(1));
+  assert.ok(carried.currentE1RM > bare.currentE1RM);
+  assert.equal(carried.points[0].addedMax, 5, 'added weight is tracked separately');
+});
+
+test('a session keeps the bodyweight it was logged at', () => {
+  const at = (id: string, date: string, bw: number): Session => ({
+    ...session(id, date, []),
+    bodyweight: bw,
+    exercises: [{ exerciseId: 'pull', sets: [set(5, 6, 2)] }],
+  });
+  // Stored newest-first, and with a fallback that must never be reached.
+  const points = summarise([at('s2', '2026-12-01', 77), at('s1', '2026-09-23', 74)], 'pull', {
+    bodyweightLoad: true,
+    fallback: 999,
+  }).points;
+
+  assert.equal(points[0].sets[0].weight, 79, 'September session used 74 kg');
+  assert.equal(points[1].sets[0].weight, 82, 'December session used 77 kg');
+});
+
+test('timed holds are left out of bodyweight loading', () => {
+  const { exercises } = buildPlan([], []);
+  const flagged = (n: string) => exercises.find((e) => e.name === n)!.bodyweightLoad;
+  assert.ok(flagged('Weighted Pull-Up'));
+  assert.ok(flagged('Hanging Leg Raise'));
+  // Bodyweight times seconds is not volume, so hangs stay unflagged.
+  assert.ok(!flagged('Dead Hang'));
 });

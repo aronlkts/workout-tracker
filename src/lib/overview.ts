@@ -10,12 +10,20 @@ export interface WeekSummary {
   sets: number;
 }
 
-export function weekSummary(sessions: Session[], iso = todayISO()): WeekSummary {
+export function weekSummary(
+  sessions: Session[],
+  iso = todayISO(),
+  bodyweightIds?: Set<string>,
+  fallbackBodyweight = 0,
+): WeekSummary {
   const week = startOfWeek(iso);
   const inWeek = finished(sessions).filter((s) => startOfWeek(s.date) === week);
   return {
     sessions: inWeek.length,
-    volume: inWeek.reduce((sum, s) => sum + sessionVolume(s), 0),
+    volume: inWeek.reduce(
+      (sum, s) => sum + sessionVolume(s, bodyweightIds, fallbackBodyweight),
+      0,
+    ),
     sets: inWeek.reduce(
       (sum, s) => sum + s.exercises.reduce((n, e) => n + e.sets.filter((x) => x.done).length, 0),
       0,
