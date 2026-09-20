@@ -81,6 +81,13 @@ export function ExercisePicker({
           onChange={(e) => setDraft({ ...draft, muscleGroup: e.target.value })}
           aria-label="Muscle group"
         />
+        <input
+          className="input"
+          placeholder="Cue (optional)"
+          value={draft.cue ?? ''}
+          onChange={(e) => setDraft({ ...draft, cue: e.target.value })}
+          aria-label="Cue"
+        />
         <datalist id={groupsId}>
           {muscleGroups.map((group) => (
             <option key={group} value={group} />
@@ -125,6 +132,7 @@ export function ExercisePicker({
               ...draft,
               name: draft.name.trim(),
               muscleGroup: draft.muscleGroup.trim() || 'General',
+              cue: draft.cue?.trim() || undefined,
             });
             setDraft(null);
             setQuery('');

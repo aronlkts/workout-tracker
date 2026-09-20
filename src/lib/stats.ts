@@ -19,8 +19,14 @@ export function weightForReps(oneRM: number, reps: number, rir = 0): number {
   return oneRM / (1 + repsToFailure / 30);
 }
 
+/**
+ * A set counts once it is ticked off and has reps. Weight is deliberately not
+ * required: bodyweight work (hangs, leg raises, jumps) is real training, and
+ * gating on load made it invisible to history, progression and the finish
+ * button. Load-based figures below simply come out as zero for those.
+ */
 export const completedSets = (sets: SetLog[]): SetLog[] =>
-  sets.filter((s) => s.done && s.weight > 0 && s.reps > 0);
+  sets.filter((s) => s.done && s.reps > 0);
 
 export function bestE1RM(sets: SetLog[]): number {
   return completedSets(sets).reduce(

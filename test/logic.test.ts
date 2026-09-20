@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { estimate1RM, weightForReps, summarise, topSet, volume } from '../src/lib/stats';
+import { estimate1RM, weightForReps, summarise, topSet, volume, sessionSetCount } from '../src/lib/stats';
 import { suggestSets, progressionTip } from '../src/lib/progression';
 import { weekNumber, startOfWeek, daysBetween } from '../src/lib/dates';
 import { weekStreak, weekSummary, suggestNextRoutine } from '../src/lib/overview';
@@ -134,6 +134,9 @@ test('week numbers count from the program start', () => {
   assert.equal(weekNumber('2026-07-08', '2026-07-02'), 1);
   assert.equal(weekNumber('2026-07-09', '2026-07-02'), 2);
   assert.equal(weekNumber('2026-09-17', '2026-07-02'), 12);
+  // A session logged the day before the block starts is still week 1.
+  assert.equal(weekNumber('2026-09-20', '2026-09-21'), 1);
+  assert.equal(weekNumber('2026-08-01', '2026-09-21'), 1);
 });
 
 test('local dates do not drift across timezones', () => {
@@ -183,4 +186,39 @@ test('two sessions on one day are ordered by the clock, not by array position', 
   assert.equal(summary.sessionCount, 2);
   assert.equal(summary.latestTopSet?.weight, 90);
   assert.ok(summary.e1rmDelta > 0, 'the later session should read as the current one');
+});
+
+test('bodyweight sets are logged, counted and progressed by reps', () => {
+  const hang: Exercise = { ...bench, id: 'hang', name: 'Hanging Leg Raise', defaultSets: 3 };
+  const bw = (reps: number, rir: number | null): SetLog => ({ weight: 0, reps, rir, done: true });
+  const history = [
+    { ...session('s1', '2026-09-17', [bw(10, 2), bw(9, 1)]), exercises: [{ exerciseId: 'hang', sets: [bw(10, 2), bw(9, 1)] }] },
+  ];
+
+  // The session must be finishable: it counts as logged work.
+  assert.equal(sessionSetCount(history[0]), 2);
+
+  const summary = summarise(history, 'hang');
+  assert.equal(summary.sessionCount, 1, 'bodyweight work should appear in history');
+  assert.equal(summary.currentE1RM, 0, 'no load means no meaningful 1RM');
+  assert.equal(summary.latestTopSet?.reps, 10, 'top set falls back to the most reps');
+
+  const [first, second] = suggestSets(hang, history, settings);
+  assert.equal(first.action, 'increase');
+  assert.equal(first.weight, 0, 'must not invent load on a bodyweight lift');
+  assert.equal(first.reps, 11, 'progression is an extra rep');
+  assert.equal(first.badge, '+1 rep');
+  assert.equal(first.lastLabel, '10 reps @ RIR 2');
+  assert.equal(second.action, 'hold');
+
+  const tip = progressionTip(suggestSets(hang, history, settings), hang, settings);
+  assert.match(tip, /try one more rep today/);
+  assert.doesNotMatch(tip, /kg/);
+});
+
+test('loaded sets still progress by weight after the bodyweight change', () => {
+  const history = [session('s1', '2026-09-17', [set(80, 8, 2)])];
+  const [first] = suggestSets(bench, history, settings);
+  assert.equal(first.weight, 82.5);
+  assert.equal(first.badge, '+2.5kg');
 });

@@ -36,10 +36,13 @@ export function daysBetween(fromIso: string, toIso: string): number {
   return Math.round((fromISO(toIso).getTime() - fromISO(fromIso).getTime()) / DAY_MS);
 }
 
-/** 1-based week of the program, counting from the program start date. */
+/**
+ * 1-based week of the program. Clamped at 1 so a session logged before the
+ * block officially starts reads as week 1 rather than week 0 or negative.
+ */
 export function weekNumber(iso: string, programStart: string): number {
   if (!programStart) return 1;
-  return Math.floor(daysBetween(programStart, iso) / 7) + 1;
+  return Math.max(1, Math.floor(daysBetween(programStart, iso) / 7) + 1);
 }
 
 export function relativeLabel(iso: string, today = todayISO()): string {

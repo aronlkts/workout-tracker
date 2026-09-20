@@ -9,9 +9,8 @@ import {
 } from 'react';
 import type { Backup, Exercise, ID, Routine, Session, Settings } from '../db/schema';
 import { DEFAULT_SETTINGS } from '../db/schema';
-import { buildSeed } from '../db/seed';
+import { buildPlan, TRAINING_PLAN } from '../db/plan';
 import * as store from '../db/store';
-import { todayISO } from '../lib/dates';
 
 interface AppDataValue {
   ready: boolean;
@@ -30,6 +29,7 @@ interface AppDataValue {
   saveSettings: (settings: Settings) => Promise<void>;
   exportBackup: () => Backup;
   importBackup: (backup: Backup) => Promise<void>;
+  installPlan: () => Promise<{ exercises: number; routines: number; removed: number }>;
 }
 
 const AppDataContext = createContext<AppDataValue | null>(null);
@@ -51,13 +51,18 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       void store.requestPersistence();
       let snapshot = await store.loadAll();
 
-      // First run: stock the exercise library so there is something to log.
+      // First run: stock the library and routines from the training plan.
       if (!snapshot.exercises.length && !snapshot.routines.length) {
-        const seed = buildSeed();
+        const seed = buildPlan([], []);
         await store.seedInto(seed.exercises, seed.routines);
-        const withStart = { ...snapshot.settings, programStart: todayISO() };
+        const withStart = { ...snapshot.settings, programStart: TRAINING_PLAN.startDate };
         await store.putSettings(withStart);
-        snapshot = { ...snapshot, ...seed, settings: withStart };
+        snapshot = {
+          ...snapshot,
+          exercises: seed.exercises,
+          routines: seed.routines,
+          settings: withStart,
+        };
       }
 
       if (cancelled) return;
@@ -149,6 +154,45 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     [exercises, routines, sessions, settings],
   );
 
+  /**
+   * Adds the plan's routines and exercises to whatever is already here.
+   * Exercises are matched by name so their history survives, and only the
+   * routines the plan supersedes are removed. Logged sessions are untouched.
+   */
+  const installPlan = useCallback(async () => {
+    const plan = buildPlan(exercises, routines);
+
+    setExercises((prev) => {
+      const next = new Map(prev.map((e) => [e.id, e]));
+      for (const exercise of plan.exercises) next.set(exercise.id, exercise);
+      return [...next.values()];
+    });
+    setRoutines((prev) => {
+      const removed = new Set(plan.removedRoutineIds);
+      const next = new Map(prev.filter((r) => !removed.has(r.id)).map((r) => [r.id, r]));
+      for (const routine of plan.routines) next.set(routine.id, routine);
+      return [...next.values()];
+    });
+
+    // Align the week counter with the block calendar, so "Week 3" in the app
+    // is week 3 of the plan.
+    const aligned = { ...settings, programStart: TRAINING_PLAN.startDate };
+    setSettings(aligned);
+
+    await Promise.all([
+      ...plan.exercises.map((e) => store.putExercise(e)),
+      ...plan.routines.map((r) => store.putRoutine(r)),
+      ...plan.removedRoutineIds.map((id) => store.removeRoutine(id)),
+      store.putSettings(aligned),
+    ]);
+
+    return {
+      exercises: plan.exercises.length,
+      routines: plan.routines.length,
+      removed: plan.removedRoutineIds.length,
+    };
+  }, [exercises, routines, settings]);
+
   const importBackup = useCallback(async (backup: Backup) => {
     await store.replaceAll(backup);
     const snapshot = await store.loadAll();
@@ -176,6 +220,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       saveSettings,
       exportBackup,
       importBackup,
+      installPlan,
     }),
     [
       ready,
@@ -192,6 +237,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       saveSettings,
       exportBackup,
       importBackup,
+      installPlan,
     ],
   );
 

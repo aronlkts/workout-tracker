@@ -8,6 +8,8 @@ export interface Exercise {
   increment: number;
   defaultSets: number;
   defaultReps: number;
+  /** One line of coaching shown while logging, e.g. "1-2 s pause at lockout". */
+  cue?: string;
   archived: boolean;
   createdAt: number;
 }

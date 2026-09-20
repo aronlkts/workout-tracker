@@ -18,7 +18,17 @@ IndexedDB on the device you logged it on and never leaves it.
 - **Home** — what to train next (the routine you have left longest), sets and
   volume this week, and your week streak.
 - **Profile** — the progression thresholds, your routines and exercise library,
-  and backup export/restore.
+  backup export/restore, and a one-tap install of the training block.
+
+### The training block
+
+`src/db/plan.ts` holds the lifting half of a 12-week BJJ hypertrophy block:
+five routines, their exercises, starting sets and reps, and a coaching cue per
+lift. It seeds a fresh install and can be re-installed from Profile, which
+matches exercises by name so existing history survives. Rep targets sit at the
+bottom of each prescribed range so double progression climbs into it. Running,
+BJJ, conditioning, mobility and nutrition are deliberately absent — the app
+logs sets, and the rest belongs in the source document.
 
 ### How the estimated 1RM is calculated
 
@@ -73,7 +83,7 @@ npm run icons      # regenerate the PNG icons from scripts/make-icons.mjs
 
 ```
 src/
-  db/          schema, IndexedDB access, the seeded exercise library
+  db/          schema, IndexedDB access, plan.ts (the training block)
   lib/         the maths: stats (1RM, volume, trends), progression, dates
   state/       one context holding everything, persisted on every change
   components/  set card, chart, nav, sheet, number input

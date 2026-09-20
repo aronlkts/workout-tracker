@@ -15,7 +15,9 @@ export interface SetSuggestion {
 }
 
 function describe(set: SetLog, unit: string): string {
-  const base = `${fmtWeight(set.weight)}${unit} × ${set.reps}`;
+  // A bodyweight set has no load worth printing.
+  const base =
+    set.weight > 0 ? `${fmtWeight(set.weight)}${unit} × ${set.reps}` : `${set.reps} reps`;
   return set.rir === null ? base : `${base} @ RIR ${set.rir}`;
 }
 
@@ -52,6 +54,16 @@ export function suggestSets(
     const lastLabel = describe(last, settings.unit);
 
     if (last.rir !== null && last.rir >= settings.progressRIR) {
+      // Nothing to add load to, so the rep is the progression.
+      if (last.weight === 0) {
+        return {
+          weight: 0,
+          reps: last.reps + 1,
+          action: 'increase' as const,
+          badge: '+1 rep',
+          lastLabel,
+        };
+      }
       return {
         weight: last.weight + step,
         reps: last.reps,
@@ -92,7 +104,10 @@ export function progressionTip(
     return `First time logging ${exercise.name}. Enter what you lift today and rate how many reps you had left — next session RepWeek will pick the weight for you.`;
   }
 
-  const step = `${fmtWeight(exercise.increment || settings.defaultIncrement)}${settings.unit}`;
+  const bodyweight = suggestions.every((s) => s.weight === 0);
+  const bump = bodyweight
+    ? 'one more rep'
+    : `+${fmtWeight(exercise.increment || settings.defaultIncrement)}${settings.unit}`;
   const indexOf = (action: ProgressionAction) =>
     suggestions.flatMap((s, i) => (s.action === action ? [i + 1] : []));
 
@@ -103,7 +118,7 @@ export function progressionTip(
 
   if (up.length) {
     parts.push(
-      `${plural(up.length, 'Set', 'Sets')} ${listRanges(up)} stayed at RIR ${settings.progressRIR}+ last time — try +${step} today.`,
+      `${plural(up.length, 'Set', 'Sets')} ${listRanges(up)} stayed at RIR ${settings.progressRIR}+ last time — try ${bump} today.`,
     );
   }
   if (hold.length) {

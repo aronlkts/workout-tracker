@@ -279,6 +279,13 @@ function ActiveLog({
               </Link>
             </div>
 
+            {exercise.cue && (
+              <div className="cue">
+                <Icon name="info" size={13} color="var(--text-dim)" />
+                <span>{exercise.cue}</span>
+              </div>
+            )}
+
             <div className="stack">
               {entry.sets.map((set, i) => (
                 <SetCard

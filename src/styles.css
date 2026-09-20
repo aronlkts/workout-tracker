@@ -868,3 +868,18 @@ input[type='number'] {
   justify-content: center;
   flex: 0 0 auto;
 }
+
+.cue {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-dim);
+  margin: 0 2px 12px;
+}
+
+.cue svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}

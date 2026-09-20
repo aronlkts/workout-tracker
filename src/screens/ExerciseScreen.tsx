@@ -19,13 +19,21 @@ export function ExerciseScreen() {
   const summary = useMemo(() => summarise(sessions, exerciseId), [sessions, exerciseId]);
 
   const recent = summary.points.slice(-WINDOW);
+
+  // Hangs, leg raises and jumps carry no load, so weight-based figures are
+  // meaningless for them; reps are what actually progresses.
+  const bodyweight = summary.sessionCount > 0 && summary.bestE1RM === 0;
+  const latestReps = summary.latestTopSet?.reps ?? 0;
+  const previousReps = summary.points.at(-2)?.topSet?.reps ?? 0;
+  const repsDelta = summary.points.length > 1 ? latestReps - previousReps : 0;
+
   const bars: Bar[] = recent
     .filter((p) => p.topSet)
     .map((p) => ({
       key: p.sessionId,
       label: `W${weekNumber(p.date, settings.programStart)}`,
-      value: p.topSet!.weight,
-      caption: fmtWeight(p.topSet!.weight),
+      value: bodyweight ? p.topSet!.reps : p.topSet!.weight,
+      caption: bodyweight ? String(p.topSet!.reps) : fmtWeight(p.topSet!.weight),
     }));
 
   const routine = routines.find((r) => r.exerciseIds.includes(exerciseId));
@@ -73,22 +81,33 @@ export function ExerciseScreen() {
         ) : (
           <>
             <div className="tiles">
-              <StatTile
-                label="Est. 1RM"
-                value={`${fmtWeight(summary.currentE1RM)}${settings.unit}`}
-                sub={
-                  summary.e1rmDelta
-                    ? `${fmtDelta(summary.e1rmDelta)}${settings.unit}`
-                    : 'no change'
-                }
-                highlight={summary.e1rmDelta > 0}
-              />
+              {bodyweight ? (
+                <StatTile
+                  label="Top Reps"
+                  value={String(latestReps)}
+                  sub={repsDelta ? `${fmtDelta(repsDelta)} reps` : 'no change'}
+                  highlight={repsDelta > 0}
+                />
+              ) : (
+                <StatTile
+                  label="Est. 1RM"
+                  value={`${fmtWeight(summary.currentE1RM)}${settings.unit}`}
+                  sub={
+                    summary.e1rmDelta
+                      ? `${fmtDelta(summary.e1rmDelta)}${settings.unit}`
+                      : 'no change'
+                  }
+                  highlight={summary.e1rmDelta > 0}
+                />
+              )}
               <StatTile
                 label="Top Set"
                 value={
-                  summary.latestTopSet
-                    ? `${fmtWeight(summary.latestTopSet.weight)} × ${summary.latestTopSet.reps}`
-                    : '—'
+                  !summary.latestTopSet
+                    ? '—'
+                    : bodyweight
+                      ? `${summary.latestTopSet.reps} reps`
+                      : `${fmtWeight(summary.latestTopSet.weight)} × ${summary.latestTopSet.reps}`
                 }
                 sub={
                   summary.latestAvgRIR !== null
@@ -106,7 +125,9 @@ export function ExerciseScreen() {
             {bars.length > 1 && (
               <>
                 <div className="spread gap-20" style={{ alignItems: 'baseline', marginBottom: 12 }}>
-                  <span className="section-title">Top set weight</span>
+                  <span className="section-title">
+                    {bodyweight ? 'Top set reps' : 'Top set weight'}
+                  </span>
                   <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 500 }}>
                     last {bars.length} {plural(bars.length, 'session')}
                   </span>
@@ -115,7 +136,7 @@ export function ExerciseScreen() {
                   <BarChart bars={bars} />
                 </div>
                 <p className="note" style={{ margin: '8px 2px 0' }}>
-                  {trendLine(recent, settings.programStart, settings.unit)}
+                  {trendLine(recent, settings.programStart, settings.unit, bodyweight)}
                 </p>
               </>
             )}
@@ -179,19 +200,33 @@ function describe(point: ExercisePoint, unit: string): string {
   const done = completedSets(point.sets);
   const reps = new Set(done.map((s) => s.reps));
   const shape = reps.size === 1 ? `${done.length}×${[...reps][0]}` : `${done.length} sets`;
-  const weight = point.topSet ? ` @ ${fmtWeight(point.topSet.weight)}${unit}` : '';
+  const weight =
+    point.topSet && point.topSet.weight > 0
+      ? ` @ ${fmtWeight(point.topSet.weight)}${unit}`
+      : '';
   const rir = point.avgRIR !== null ? ` · avg RIR ${fmtRIR(point.avgRIR)}` : '';
   return `${shape}${weight}${rir}`;
 }
 
-function trendLine(points: ExercisePoint[], programStart: string, unit: string): string {
+function trendLine(
+  points: ExercisePoint[],
+  programStart: string,
+  unit: string,
+  bodyweight: boolean,
+): string {
   const first = points[0];
   const last = points.at(-1);
   if (!first?.topSet || !last?.topSet || first === last) return '';
 
-  const delta = last.topSet.weight - first.topSet.weight;
   const since = `Week ${weekNumber(first.date, programStart)}`;
-  if (delta > 0) return `Up ${fmtWeight(delta)}${unit} on the top set since ${since}.`;
-  if (delta < 0) return `Down ${fmtWeight(Math.abs(delta))}${unit} on the top set since ${since}.`;
+  const delta = bodyweight
+    ? last.topSet.reps - first.topSet.reps
+    : last.topSet.weight - first.topSet.weight;
+  const amount = bodyweight
+    ? `${Math.abs(delta)} ${plural(Math.abs(delta), 'rep')}`
+    : `${fmtWeight(Math.abs(delta))}${unit}`;
+
+  if (delta > 0) return `Up ${amount} on the top set since ${since}.`;
+  if (delta < 0) return `Down ${amount} on the top set since ${since}.`;
   return `Top set unchanged since ${since} — time to push reps or add a set.`;
 }

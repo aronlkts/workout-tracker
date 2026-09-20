@@ -3,6 +3,7 @@ import type { Backup, Exercise, Routine, Settings } from '../db/schema';
 import { newId } from '../db/schema';
 import { useAppData } from '../state/AppData';
 import { storageEstimate } from '../db/store';
+import { TRAINING_PLAN } from '../db/plan';
 import { todayISO } from '../lib/dates';
 import { plural } from '../lib/format';
 import { Icon } from '../components/Icon';
@@ -23,6 +24,7 @@ export function ProfileScreen() {
     deleteRoutine,
     exportBackup,
     importBackup,
+    installPlan,
   } = useAppData();
 
   const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
@@ -66,6 +68,20 @@ export function ProfileScreen() {
     a.click();
     URL.revokeObjectURL(url);
     setStatus('Backup downloaded.');
+  };
+
+  const install = async () => {
+    const ok = window.confirm(
+      `Install ${TRAINING_PLAN.title}? It adds ${TRAINING_PLAN.routines.length} routines ` +
+        `and their exercises, sets week 1 to ${TRAINING_PLAN.startDate}, removes the ` +
+        `sample Push/Pull/Leg routines, and leaves every session you have logged untouched.`,
+    );
+    if (!ok) return;
+    const result = await installPlan();
+    setStatus(
+      `Installed ${result.routines} routines and ${result.exercises} exercises.` +
+        (result.removed ? ` Removed ${result.removed} sample routines.` : ''),
+    );
   };
 
   const restore = async (file: File) => {
@@ -206,6 +222,18 @@ export function ProfileScreen() {
               <Icon name="edit" size={14} color="var(--text-dim)" />
             </button>
           ))}
+        </div>
+
+        <div className="card gap-16">
+          <div className="row-title">{TRAINING_PLAN.title}</div>
+          <div className="form-hint" style={{ marginTop: 4 }}>
+            The {TRAINING_PLAN.routines.length} lifting days and their exercises, with set
+            and rep targets at the bottom of each prescribed range. Running, BJJ, air bike,
+            mobility and nutrition are not part of it — the app only logs sets.
+          </div>
+          <button type="button" className="btn btn-ghost btn-sm gap-16" onClick={install}>
+            <Icon name="download" size={13} /> Install training plan
+          </button>
         </div>
 
         <div className="spread gap-24" style={{ marginBottom: 10 }}>
@@ -498,6 +526,13 @@ function ExerciseSheet({
           onChange={(e) => setDraft({ ...draft, muscleGroup: e.target.value })}
           aria-label="Muscle group"
         />
+        <input
+          className="input"
+          placeholder="Cue (optional)"
+          value={draft.cue ?? ''}
+          onChange={(e) => setDraft({ ...draft, cue: e.target.value })}
+          aria-label="Cue"
+        />
 
         <div className="form-row">
           <div className="form-label">Weight step</div>
@@ -538,6 +573,7 @@ function ExerciseSheet({
             ...draft,
             name: draft.name.trim(),
             muscleGroup: draft.muscleGroup.trim() || 'General',
+            cue: draft.cue?.trim() || undefined,
           })
         }
       >
