@@ -883,3 +883,63 @@ input[type='number'] {
   flex: 0 0 auto;
   margin-top: 1px;
 }
+
+/* ---- Supersets --------------------------------------------------------- */
+.icon-btn-sm {
+  width: 30px;
+  height: 30px;
+}
+
+/* A paired A/B reads as one block: joined edges, accent spine down the side. */
+.row.paired-start {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: transparent;
+  border-left: 2px solid var(--accent);
+}
+
+.row.paired-end {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-left: 2px solid var(--accent);
+  margin-top: -6px;
+}
+
+.pair-tag {
+  display: inline-block;
+  min-width: 14px;
+  margin-right: 7px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.pair-bar {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.pair-bar svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.pair-jump {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--accent);
+  text-decoration: underline;
+}

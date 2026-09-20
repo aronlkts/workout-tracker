@@ -8,7 +8,9 @@ IndexedDB on the device you logged it on and never leaves it.
 
 - **Log** — a session per routine, with the weight for each set pre-filled from
   what the progression rules suggest. Tick a set off, adjust weight in the
-  lift's own increment, record reps and RIR.
+  lift's own increment, record reps and RIR. Each lift shows its rest time, its
+  cue, and — when the day pairs it — the superset partner, with a tap to jump
+  between the two.
 - **Progression** — double progression driven by RIR. A set you finished with
   2+ reps in reserve earns the next weight jump; a set that ran you to RIR 0–1
   keeps its weight and asks for an extra rep instead. The tip card on the log
@@ -18,13 +20,15 @@ IndexedDB on the device you logged it on and never leaves it.
 - **Home** — what to train next (the routine you have left longest), sets and
   volume this week, and your week streak.
 - **Profile** — the progression thresholds, your routines and exercise library,
-  backup export/restore, and a one-tap install of the training block.
+  backup export/restore, and a one-tap install of the training block. Routines
+  are ordered lists where any entry can be linked to the next as a superset, so
+  the same lift can be paired on one day and a straight set on another.
 
 ### The training block
 
 `src/db/plan.ts` holds the lifting half of a 12-week BJJ hypertrophy block:
-five routines, their exercises, starting sets and reps, and a coaching cue per
-lift. It seeds a fresh install and can be re-installed from Profile, which
+five routines, their exercises, starting sets and reps, a rest time and a
+coaching cue per lift, and the A/B superset pairs. It seeds a fresh install and can be re-installed from Profile, which
 matches exercises by name so existing history survives. Rep targets sit at the
 bottom of each prescribed range so double progression climbs into it. Running,
 BJJ, conditioning, mobility and nutrition are deliberately absent — the app

@@ -6,7 +6,8 @@ import { suggestSets, progressionTip } from '../src/lib/progression';
 import { weekNumber, startOfWeek, daysBetween } from '../src/lib/dates';
 import { weekStreak, weekSummary, suggestNextRoutine } from '../src/lib/overview';
 import { listRanges, fmtWeight } from '../src/lib/format';
-import { DEFAULT_SETTINGS, type Exercise, type Session, type SetLog } from '../src/db/schema';
+import { DEFAULT_SETTINGS, normaliseRoutine, tidyEntries, type Exercise, type Session, type SetLog } from '../src/db/schema';
+import { buildPlan } from '../src/db/plan';
 
 const settings = { ...DEFAULT_SETTINGS, programStart: '2026-07-02' };
 
@@ -221,4 +222,65 @@ test('loaded sets still progress by weight after the bodyweight change', () => {
   const [first] = suggestSets(bench, history, settings);
   assert.equal(first.weight, 82.5);
   assert.equal(first.badge, '+2.5kg');
+});
+
+test('routines saved before pairing existed still load', () => {
+  const legacy = { id: 'r1', name: 'Push Day', exerciseIds: ['a', 'b'], archived: false };
+  const migrated = normaliseRoutine(legacy as never);
+  assert.deepEqual(migrated.entries, [{ exerciseId: 'a' }, { exerciseId: 'b' }]);
+  // Running it again must not change anything.
+  assert.deepEqual(normaliseRoutine(migrated).entries, migrated.entries);
+});
+
+test('nothing can be supersetted with an exercise that is not there', () => {
+  const entries = [{ exerciseId: 'a', supersetWithNext: true }, { exerciseId: 'b', supersetWithNext: true }];
+  assert.deepEqual(tidyEntries(entries), [
+    { exerciseId: 'a', supersetWithNext: true },
+    { exerciseId: 'b' },
+  ]);
+});
+
+test('superset pairing belongs to the day, not to the exercise', () => {
+  const { exercises, routines } = buildPlan([], []);
+  const name = new Map(exercises.map((e) => [e.id, e.name]));
+  const routine = (prefix: string) => routines.find((r) => r.name.startsWith(prefix))!;
+  const pairs = (prefix: string) =>
+    routine(prefix).entries.flatMap((entry, i, all) =>
+      entry.supersetWithNext
+        ? [[name.get(entry.exerciseId), name.get(all[i + 1].exerciseId)]]
+        : [],
+    );
+
+  assert.deepEqual(pairs('Mon'), [['Calf Raise', 'Tibialis Raise']]);
+  assert.deepEqual(pairs('Tue'), [
+    ['Cable Rear Delt Fly', 'Cable Curl'],
+    ['Cable External Rotation', 'Wrist Extensor Eccentrics'],
+  ]);
+  assert.deepEqual(pairs('Thu'), [['Cable Triceps Pushdown', 'Face Pull']]);
+
+  // The very same calf raise: paired on Monday, a straight set on Tuesday.
+  const calf = exercises.find((e) => e.name === 'Calf Raise')!;
+  const on = (prefix: string) =>
+    routine(prefix).entries.find((e) => e.exerciseId === calf.id)!;
+  assert.equal(on('Mon').supersetWithNext, true);
+  assert.ok(!on('Tue').supersetWithNext);
+
+  // And rear delt fly is the B lift twice, behind different partners.
+  const fly = exercises.find((e) => e.name === 'Cable Rear Delt Fly')!;
+  assert.ok(pairs('Tue').some(([a]) => a === fly.name));
+  assert.deepEqual(pairs('Wed'), [['Cable Overhead Triceps Extension', 'Cable Rear Delt Fly']]);
+});
+
+test('reinstalling the plan keeps exercise ids so history survives', () => {
+  const first = buildPlan([], []);
+  const again = buildPlan(first.exercises, first.routines);
+  const idOf = (list: typeof first.exercises, n: string) => list.find((e) => e.name === n)!.id;
+  assert.equal(idOf(again.exercises, 'Trap Bar Deadlift'), idOf(first.exercises, 'Trap Bar Deadlift'));
+  assert.equal(again.removedRoutineIds.length, 0, 'nothing to remove on a reinstall');
+});
+
+test('every planned exercise carries a rest time', () => {
+  const { exercises } = buildPlan([], []);
+  const missing = exercises.filter((e) => !e.restSeconds).map((e) => e.name);
+  assert.deepEqual(missing, []);
 });

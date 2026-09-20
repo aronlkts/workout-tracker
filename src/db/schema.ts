@@ -10,6 +10,8 @@ export interface Exercise {
   defaultReps: number;
   /** One line of coaching shown while logging, e.g. "1-2 s pause at lockout". */
   cue?: string;
+  /** Recommended rest between sets, in seconds. */
+  restSeconds?: number;
   archived: boolean;
   createdAt: number;
 }
@@ -38,11 +40,48 @@ export interface Session {
   exercises: SessionExercise[];
 }
 
+export interface RoutineEntry {
+  exerciseId: ID;
+  /**
+   * Performed back-to-back with the entry after it, with no rest in between.
+   * Pairing lives here rather than on the exercise because it changes by day:
+   * calf raises are supersetted on Monday and a straight set on Tuesday.
+   */
+  supersetWithNext?: boolean;
+}
+
 export interface Routine {
   id: ID;
   name: string;
-  exerciseIds: ID[];
+  entries: RoutineEntry[];
   archived: boolean;
+}
+
+/** How routines were stored before pairing existed. */
+interface LegacyRoutine {
+  exerciseIds?: ID[];
+}
+
+/** Brings a stored routine up to the current shape. Safe to run repeatedly. */
+export function normaliseRoutine(raw: Routine & LegacyRoutine): Routine {
+  const entries = Array.isArray(raw.entries)
+    ? raw.entries
+    : (raw.exerciseIds ?? []).map((exerciseId) => ({ exerciseId }));
+  return {
+    id: raw.id,
+    name: raw.name,
+    entries,
+    archived: Boolean(raw.archived),
+  };
+}
+
+/** Nothing can be supersetted with the exercise after it if there isn't one. */
+export function tidyEntries(entries: RoutineEntry[]): RoutineEntry[] {
+  return entries.map((entry, i) =>
+    i === entries.length - 1 && entry.supersetWithNext
+      ? { exerciseId: entry.exerciseId }
+      : entry,
+  );
 }
 
 export interface Settings {

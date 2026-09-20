@@ -52,7 +52,7 @@ export function HomeScreen() {
       buildSession(
         routine,
         routine?.name ?? 'Freestyle',
-        routine?.exerciseIds ?? [],
+        routine?.entries.map((e) => e.exerciseId) ?? [],
         exercises,
         sessions,
         settings,
@@ -106,7 +106,7 @@ export function HomeScreen() {
                   {nextRoutine.name}
                 </div>
                 <div className="row-detail">
-                  {nextRoutine.exerciseIds.length} exercises ·{' '}
+                  {nextRoutine.entries.length} exercises ·{' '}
                   {sessions.some((s) => s.finishedAt !== null && s.routineId === nextRoutine.id)
                     ? 'weights pre-filled from last time'
                     : 'first time through'}
@@ -146,8 +146,8 @@ export function HomeScreen() {
                         <div>
                           <div className="row-title">{routine.name}</div>
                           <div className="row-detail">
-                            {routine.exerciseIds.length}{' '}
-                            {plural(routine.exerciseIds.length, 'exercise')} ·{' '}
+                            {routine.entries.length}{' '}
+                            {plural(routine.entries.length, 'exercise')} ·{' '}
                             {last ? relativeLabel(last, today).toLowerCase() : 'not trained yet'}
                           </div>
                         </div>

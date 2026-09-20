@@ -1,5 +1,5 @@
 import type { Exercise, Routine } from './schema';
-import { newId } from './schema';
+import { newId, tidyEntries } from './schema';
 
 /**
  * The lifting half of the 12-week BJJ hypertrophy block.
@@ -21,19 +21,34 @@ export interface PlanExercise {
   increment: number;
   defaultSets: number;
   defaultReps: number;
+  restSeconds: number;
   cue?: string;
+}
+
+export interface PlanEntry {
+  name: string;
+  supersetWithNext?: boolean;
 }
 
 export interface PlanRoutine {
   name: string;
-  /** Exercise names, in the order they are performed. */
-  exercises: string[];
+  /** In the order performed. */
+  exercises: PlanEntry[];
 }
+
+const one = (name: string): PlanEntry => ({ name });
+
+/** The A/B pairs: no rest between the two, rest once after the pair. */
+const pair = (a: string, b: string): PlanEntry[] => [
+  { name: a, supersetWithNext: true },
+  { name: b },
+];
 
 const EXERCISES: PlanExercise[] = [
   // --- Monday, lower ----------------------------------------------------
   {
     name: 'Broad Jump',
+    restSeconds: 90,
     muscleGroup: 'Power',
     increment: 2.5,
     defaultSets: 3,
@@ -42,6 +57,7 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Pendulum Squat',
+    restSeconds: 180,
     muscleGroup: 'Quads',
     increment: 5,
     defaultSets: 9,
@@ -50,6 +66,7 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Hip Thrust',
+    restSeconds: 120,
     muscleGroup: 'Glutes',
     increment: 5,
     defaultSets: 3,
@@ -58,6 +75,7 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Seated Leg Curl',
+    restSeconds: 90,
     muscleGroup: 'Hamstrings',
     increment: 2.5,
     defaultSets: 3,
@@ -66,6 +84,7 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Adductor Machine',
+    restSeconds: 90,
     muscleGroup: 'Adductors',
     increment: 2.5,
     defaultSets: 3,
@@ -74,6 +93,7 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Cable Lateral Raise',
+    restSeconds: 75,
     muscleGroup: 'Side Delts',
     increment: 2.5,
     defaultSets: 3,
@@ -82,6 +102,7 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Hanging Leg Raise',
+    restSeconds: 75,
     muscleGroup: 'Trunk',
     increment: 2.5,
     defaultSets: 3,
@@ -89,22 +110,24 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Calf Raise',
+    restSeconds: 60,
     muscleGroup: 'Calves',
     increment: 5,
     defaultSets: 2,
     defaultReps: 12,
-    cue: 'Superset with tibialis raise.',
   },
   {
     name: 'Tibialis Raise',
+    restSeconds: 60,
     muscleGroup: 'Tibialis',
     increment: 2.5,
     defaultSets: 2,
     defaultReps: 15,
-    cue: 'Superset with calf raise. First thing to cut when a session runs long.',
+    cue: 'First thing to cut when a session runs long.',
   },
   {
     name: 'Dead Hang',
+    restSeconds: 60,
     muscleGroup: 'Grip',
     increment: 2.5,
     defaultSets: 2,
@@ -115,6 +138,7 @@ const EXERCISES: PlanExercise[] = [
   // --- Tuesday, isolation ----------------------------------------------
   {
     name: 'Cable Rear Delt Fly',
+    restSeconds: 75,
     muscleGroup: 'Rear Delts',
     increment: 2.5,
     defaultSets: 3,
@@ -122,6 +146,7 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Cable Curl',
+    restSeconds: 60,
     muscleGroup: 'Biceps',
     increment: 2.5,
     defaultSets: 2,
@@ -130,14 +155,16 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Cable External Rotation',
+    restSeconds: 60,
     muscleGroup: 'Rotator Cuff',
     increment: 1.25,
     defaultSets: 2,
     defaultReps: 15,
-    cue: 'Light. Superset with wrist extensor eccentrics.',
+    cue: 'Light.',
   },
   {
     name: 'Wrist Extensor Eccentrics',
+    restSeconds: 60,
     muscleGroup: 'Forearms',
     increment: 1,
     defaultSets: 3,
@@ -148,6 +175,7 @@ const EXERCISES: PlanExercise[] = [
   // --- Wednesday, upper -------------------------------------------------
   {
     name: 'Med Ball Chest Throw',
+    restSeconds: 90,
     muscleGroup: 'Power',
     increment: 1,
     defaultSets: 3,
@@ -156,6 +184,7 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Incline DB Press',
+    restSeconds: 180,
     muscleGroup: 'Chest',
     increment: 2,
     defaultSets: 9,
@@ -164,6 +193,7 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Weighted Pull-Up',
+    restSeconds: 150,
     muscleGroup: 'Back',
     increment: 2.5,
     defaultSets: 3,
@@ -172,6 +202,7 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Flat Machine Press',
+    restSeconds: 120,
     muscleGroup: 'Chest',
     increment: 2.5,
     defaultSets: 3,
@@ -179,6 +210,7 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Seated Shoulder Press',
+    restSeconds: 120,
     muscleGroup: 'Shoulders',
     increment: 2,
     defaultSets: 2,
@@ -187,6 +219,7 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Neutral-Grip Lat Pulldown',
+    restSeconds: 90,
     muscleGroup: 'Back',
     increment: 2.5,
     defaultSets: 4,
@@ -195,14 +228,16 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Cable Overhead Triceps Extension',
+    restSeconds: 75,
     muscleGroup: 'Triceps',
     increment: 2.5,
     defaultSets: 3,
     defaultReps: 10,
-    cue: 'Rope. No grinding at lockout. Superset with rear delt fly.',
+    cue: 'Rope. No grinding at lockout.',
   },
   {
     name: 'Neck Harness',
+    restSeconds: 60,
     muscleGroup: 'Neck',
     increment: 1.25,
     defaultSets: 3,
@@ -212,6 +247,7 @@ const EXERCISES: PlanExercise[] = [
   // --- Thursday, light isolation ---------------------------------------
   {
     name: 'Cable Fly',
+    restSeconds: 90,
     muscleGroup: 'Chest',
     increment: 2.5,
     defaultSets: 3,
@@ -220,14 +256,16 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Cable Triceps Pushdown',
+    restSeconds: 75,
     muscleGroup: 'Triceps',
     increment: 2.5,
     defaultSets: 3,
     defaultReps: 12,
-    cue: '2 RIR. Superset with face pull.',
+    cue: '2 RIR.',
   },
   {
     name: 'Face Pull',
+    restSeconds: 75,
     muscleGroup: 'Rear Delts',
     increment: 2.5,
     defaultSets: 3,
@@ -235,6 +273,7 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Hammer Curl',
+    restSeconds: 60,
     muscleGroup: 'Biceps',
     increment: 2,
     defaultSets: 2,
@@ -243,6 +282,7 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Eccentric Calf Raise',
+    restSeconds: 60,
     muscleGroup: 'Calves',
     increment: 5,
     defaultSets: 2,
@@ -253,6 +293,7 @@ const EXERCISES: PlanExercise[] = [
   // --- Friday, hinge + volume -------------------------------------------
   {
     name: 'Trap Bar Deadlift',
+    restSeconds: 180,
     muscleGroup: 'Posterior Chain',
     increment: 5,
     defaultSets: 4,
@@ -261,6 +302,7 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Pendulum Split Squat',
+    restSeconds: 120,
     muscleGroup: 'Quads',
     increment: 2.5,
     defaultSets: 3,
@@ -269,6 +311,7 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'T-Bar Row',
+    restSeconds: 120,
     muscleGroup: 'Back',
     increment: 2.5,
     defaultSets: 4,
@@ -277,6 +320,7 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Flat DB Press',
+    restSeconds: 120,
     muscleGroup: 'Chest',
     increment: 2,
     defaultSets: 3,
@@ -284,6 +328,7 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: '45° Back Extension',
+    restSeconds: 90,
     muscleGroup: 'Lower Back',
     increment: 2.5,
     defaultSets: 2,
@@ -292,11 +337,12 @@ const EXERCISES: PlanExercise[] = [
   },
   {
     name: 'Pallof Press',
+    restSeconds: 60,
     muscleGroup: 'Trunk',
     increment: 2.5,
     defaultSets: 2,
     defaultReps: 12,
-    cue: 'Per side. Superset with neck.',
+    cue: 'Per side.',
   },
 ];
 
@@ -304,67 +350,60 @@ const ROUTINES: PlanRoutine[] = [
   {
     name: 'Mon · Lower (heavy)',
     exercises: [
-      'Broad Jump',
-      'Pendulum Squat',
-      'Hip Thrust',
-      'Seated Leg Curl',
-      'Adductor Machine',
-      'Cable Lateral Raise',
-      'Hanging Leg Raise',
-      'Calf Raise',
-      'Tibialis Raise',
-      'Dead Hang',
+      one('Broad Jump'),
+      one('Pendulum Squat'),
+      one('Hip Thrust'),
+      one('Seated Leg Curl'),
+      one('Adductor Machine'),
+      one('Cable Lateral Raise'),
+      one('Hanging Leg Raise'),
+      ...pair('Calf Raise', 'Tibialis Raise'),
+      one('Dead Hang'),
     ],
   },
   {
     name: 'Tue · Isolation',
     exercises: [
-      'Cable Lateral Raise',
-      'Cable Rear Delt Fly',
-      'Cable Curl',
-      'Cable External Rotation',
-      'Wrist Extensor Eccentrics',
-      'Calf Raise',
+      one('Cable Lateral Raise'),
+      ...pair('Cable Rear Delt Fly', 'Cable Curl'),
+      ...pair('Cable External Rotation', 'Wrist Extensor Eccentrics'),
+      one('Calf Raise'),
     ],
   },
   {
     name: 'Wed · Upper (heavy)',
     exercises: [
-      'Med Ball Chest Throw',
-      'Incline DB Press',
-      'Weighted Pull-Up',
-      'Flat Machine Press',
-      'Seated Shoulder Press',
-      'Neutral-Grip Lat Pulldown',
-      'Cable Overhead Triceps Extension',
-      'Cable Rear Delt Fly',
-      'Neck Harness',
-      'Dead Hang',
+      one('Med Ball Chest Throw'),
+      one('Incline DB Press'),
+      one('Weighted Pull-Up'),
+      one('Flat Machine Press'),
+      one('Seated Shoulder Press'),
+      one('Neutral-Grip Lat Pulldown'),
+      ...pair('Cable Overhead Triceps Extension', 'Cable Rear Delt Fly'),
+      one('Neck Harness'),
+      one('Dead Hang'),
     ],
   },
   {
     name: 'Thu · Isolation (light)',
     exercises: [
-      'Cable Fly',
-      'Cable Lateral Raise',
-      'Cable Triceps Pushdown',
-      'Face Pull',
-      'Hammer Curl',
-      'Eccentric Calf Raise',
+      one('Cable Fly'),
+      one('Cable Lateral Raise'),
+      ...pair('Cable Triceps Pushdown', 'Face Pull'),
+      one('Hammer Curl'),
+      one('Eccentric Calf Raise'),
     ],
   },
   {
     name: 'Fri · Hinge + volume',
     exercises: [
-      'Trap Bar Deadlift',
-      'Pendulum Split Squat',
-      'T-Bar Row',
-      'Flat DB Press',
-      '45° Back Extension',
-      'Cable Lateral Raise',
-      'Pallof Press',
-      'Neck Harness',
-      'Dead Hang',
+      one('Trap Bar Deadlift'),
+      one('Pendulum Split Squat'),
+      one('T-Bar Row'),
+      one('Flat DB Press'),
+      ...pair('45° Back Extension', 'Cable Lateral Raise'),
+      ...pair('Pallof Press', 'Neck Harness'),
+      one('Dead Hang'),
     ],
   },
 ];
@@ -410,6 +449,7 @@ export function buildPlan(
       increment: spec.increment,
       defaultSets: spec.defaultSets,
       defaultReps: spec.defaultReps,
+      restSeconds: spec.restSeconds,
       cue: spec.cue,
       archived: false,
       createdAt: existing?.createdAt ?? createdAt,
@@ -424,10 +464,14 @@ export function buildPlan(
     return {
       id: existing?.id ?? newId(),
       name: spec.name,
-      exerciseIds: spec.exercises.flatMap((name) => {
-        const id = ids.get(normalise(name));
-        return id ? [id] : [];
-      }),
+      entries: tidyEntries(
+        spec.exercises.flatMap((entry) => {
+          const id = ids.get(normalise(entry.name));
+          return id
+            ? [{ exerciseId: id, supersetWithNext: entry.supersetWithNext }]
+            : [];
+        }),
+      ),
       archived: false,
     };
   });

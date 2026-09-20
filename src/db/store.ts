@@ -1,6 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Backup, Exercise, ID, Routine, Session, Settings } from './schema';
-import { DEFAULT_SETTINGS } from './schema';
+import { DEFAULT_SETTINGS, normaliseRoutine } from './schema';
 
 interface RepWeekDB extends DBSchema {
   exercises: { key: ID; value: Exercise };
@@ -45,7 +45,7 @@ export async function loadAll(): Promise<Snapshot> {
 
   return {
     exercises,
-    routines,
+    routines: routines.map(normaliseRoutine),
     sessions: sessions.sort((a, b) => b.date.localeCompare(a.date) || b.startedAt - a.startedAt),
     // Merge so settings added in a later version get their defaults.
     settings: { ...DEFAULT_SETTINGS, ...(stored ?? {}) },
@@ -96,7 +96,7 @@ export async function replaceAll(backup: Backup): Promise<void> {
   ]);
   await Promise.all([
     ...backup.exercises.map((e) => tx.objectStore('exercises').put(e)),
-    ...backup.routines.map((r) => tx.objectStore('routines').put(r)),
+    ...backup.routines.map((r) => tx.objectStore('routines').put(normaliseRoutine(r))),
     ...backup.sessions.map((s) => tx.objectStore('sessions').put(s)),
     tx.objectStore('meta').put({ ...DEFAULT_SETTINGS, ...backup.settings }, 'settings'),
   ]);

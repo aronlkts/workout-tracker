@@ -47,3 +47,12 @@ export function listRanges(nums: number[]): string {
   if (runs.length === 1) return runs[0];
   return `${runs.slice(0, -1).join(', ')} and ${runs.at(-1)}`;
 }
+
+/** "Rest 90 s" / "Rest 3 min" / "Rest 2:30" */
+export function restLabel(seconds: number | undefined): string {
+  if (!seconds) return 'No rest set';
+  if (seconds < 120) return `Rest ${seconds} s`;
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return rest === 0 ? `Rest ${minutes} min` : `Rest ${minutes}:${String(rest).padStart(2, '0')}`;
+}

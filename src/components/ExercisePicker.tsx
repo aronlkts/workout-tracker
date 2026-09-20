@@ -105,6 +105,17 @@ export function ExercisePicker({
           />
         </div>
         <div className="form-row">
+          <div className="form-label">Rest between sets (s)</div>
+          <NumberInput
+            value={draft.restSeconds ?? null}
+            onCommit={(v) => setDraft({ ...draft, restSeconds: v ?? undefined })}
+            className="input input-narrow"
+            allowEmpty
+            placeholder="—"
+            aria-label="Rest between sets in seconds"
+          />
+        </div>
+        <div className="form-row">
           <div className="form-label">Default sets</div>
           <NumberInput
             value={draft.defaultSets}

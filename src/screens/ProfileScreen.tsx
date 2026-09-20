@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Backup, Exercise, Routine, Settings } from '../db/schema';
-import { newId } from '../db/schema';
+import type { Backup, Exercise, Routine, RoutineEntry, Settings } from '../db/schema';
+import { newId, normaliseRoutine, tidyEntries } from '../db/schema';
 import { useAppData } from '../state/AppData';
 import { storageEstimate } from '../db/store';
 import { TRAINING_PLAN } from '../db/plan';
 import { todayISO } from '../lib/dates';
-import { plural } from '../lib/format';
+import { plural, restLabel } from '../lib/format';
 import { Icon } from '../components/Icon';
 import { Sheet } from '../components/Sheet';
 import { NumberInput } from '../components/NumberInput';
@@ -199,7 +199,7 @@ export function ProfileScreen() {
             type="button"
             className="chip chip-button"
             onClick={() =>
-              setEditingRoutine({ id: newId(), name: '', exerciseIds: [], archived: false })
+              setEditingRoutine({ id: newId(), name: '', entries: [], archived: false })
             }
           >
             <Icon name="plus" size={12} /> New
@@ -216,7 +216,7 @@ export function ProfileScreen() {
               <div>
                 <div className="row-title">{routine.name}</div>
                 <div className="row-detail">
-                  {routine.exerciseIds.length} {plural(routine.exerciseIds.length, 'exercise')}
+                  {routine.entries.length} {plural(routine.entries.length, 'exercise')}
                 </div>
               </div>
               <Icon name="edit" size={14} color="var(--text-dim)" />
@@ -392,18 +392,30 @@ function RoutineSheet({
   onSave: (routine: Routine) => void;
   onDelete: (id: string) => void;
 }) {
-  const [draft, setDraft] = useState(routine);
-  const chosen = draft.exerciseIds
-    .map((id) => exercises.find((e) => e.id === id))
-    .filter((e): e is Exercise => Boolean(e));
+  const [draft, setDraft] = useState(normaliseRoutine(routine));
+
+  const rows = draft.entries.map((entry) => ({
+    entry,
+    exercise: exercises.find((e) => e.id === entry.exerciseId),
+  }));
+
+  const update = (entries: RoutineEntry[]) =>
+    setDraft({ ...draft, entries: tidyEntries(entries) });
 
   const move = (index: number, delta: number) => {
-    const next = draft.exerciseIds.slice();
+    const next = draft.entries.slice();
     const target = index + delta;
     if (target < 0 || target >= next.length) return;
     [next[index], next[target]] = [next[target], next[index]];
-    setDraft({ ...draft, exerciseIds: next });
+    update(next);
   };
+
+  const togglePair = (index: number) =>
+    update(
+      draft.entries.map((entry, i) =>
+        i === index ? { ...entry, supersetWithNext: !entry.supersetWithNext } : entry,
+      ),
+    );
 
   return (
     <Sheet title={routine.name || 'New routine'} onClose={onClose}>
@@ -419,45 +431,74 @@ function RoutineSheet({
         In this routine
       </div>
       <div className="stack-sm">
-        {chosen.map((exercise, i) => (
-          <div className="row" key={exercise.id}>
-            <div className="row-title">{exercise.name}</div>
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button
-                type="button"
-                className="icon-btn"
-                onClick={() => move(i, -1)}
-                aria-label={`Move ${exercise.name} up`}
-                disabled={i === 0}
-              >
-                <Icon name="arrowUp" size={13} />
-              </button>
-              <button
-                type="button"
-                className="icon-btn"
-                onClick={() => move(i, 1)}
-                aria-label={`Move ${exercise.name} down`}
-                disabled={i === chosen.length - 1}
-              >
-                <Icon name="arrowUp" size={13} className="flip" />
-              </button>
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label={`Remove ${exercise.name}`}
-                onClick={() =>
-                  setDraft({
-                    ...draft,
-                    exerciseIds: draft.exerciseIds.filter((id) => id !== exercise.id),
-                  })
-                }
-              >
-                <Icon name="close" size={13} />
-              </button>
+        {rows.map(({ entry, exercise }, i) => {
+          if (!exercise) return null;
+          const paired = Boolean(entry.supersetWithNext);
+          const partner = paired ? rows[i + 1]?.exercise?.name : undefined;
+          const pairedToPrevious = Boolean(draft.entries[i - 1]?.supersetWithNext);
+          const cls = paired
+            ? 'row paired-start'
+            : pairedToPrevious
+              ? 'row paired-end'
+              : 'row';
+
+          return (
+            <div className={cls} key={`${entry.exerciseId}-${i}`}>
+              <div style={{ minWidth: 0 }}>
+                <div className="row-title">
+                  {(paired || pairedToPrevious) && (
+                    <span className="pair-tag">{paired ? 'A' : 'B'}</span>
+                  )}
+                  {exercise.name}
+                </div>
+                <div className="row-detail">
+                  {paired
+                    ? `Straight into ${partner ?? 'the next lift'} — no rest`
+                    : restLabel(exercise.restSeconds)}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 4, flex: '0 0 auto' }}>
+                <button
+                  type="button"
+                  className="icon-btn icon-btn-sm"
+                  onClick={() => togglePair(i)}
+                  aria-pressed={paired}
+                  aria-label={`Superset ${exercise.name} with the next exercise`}
+                  disabled={i === draft.entries.length - 1}
+                >
+                  <Icon name="link" size={12} color={paired ? 'var(--accent)' : undefined} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn icon-btn-sm"
+                  onClick={() => move(i, -1)}
+                  aria-label={`Move ${exercise.name} up`}
+                  disabled={i === 0}
+                >
+                  <Icon name="arrowUp" size={12} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn icon-btn-sm"
+                  onClick={() => move(i, 1)}
+                  aria-label={`Move ${exercise.name} down`}
+                  disabled={i === draft.entries.length - 1}
+                >
+                  <Icon name="arrowUp" size={12} className="flip" />
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn icon-btn-sm"
+                  aria-label={`Remove ${exercise.name}`}
+                  onClick={() => update(draft.entries.filter((_, j) => j !== i))}
+                >
+                  <Icon name="close" size={12} />
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
-        {!chosen.length && <p className="empty">Pick exercises below.</p>}
+          );
+        })}
+        {!draft.entries.length && <p className="empty">Pick exercises below.</p>}
       </div>
 
       <div className="section-title gap-20" style={{ marginBottom: 8 }}>
@@ -465,20 +506,20 @@ function RoutineSheet({
       </div>
       <ExercisePicker
         exercises={exercises}
-        excludeIds={draft.exerciseIds}
+        excludeIds={draft.entries.map((e) => e.exerciseId)}
         defaultIncrement={defaultIncrement}
         unit={unit}
-        onPick={(id) => setDraft({ ...draft, exerciseIds: [...draft.exerciseIds, id] })}
+        onPick={(id) => update([...draft.entries, { exerciseId: id }])}
         onCreate={(exercise) => {
           onCreateExercise(exercise);
-          setDraft({ ...draft, exerciseIds: [...draft.exerciseIds, exercise.id] });
+          update([...draft.entries, { exerciseId: exercise.id }]);
         }}
       />
 
       <button
         type="button"
         className="btn gap-20"
-        disabled={!draft.name.trim() || !draft.exerciseIds.length}
+        disabled={!draft.name.trim() || !draft.entries.length}
         onClick={() => onSave({ ...draft, name: draft.name.trim() })}
       >
         Save routine
@@ -526,6 +567,17 @@ function ExerciseSheet({
           onChange={(e) => setDraft({ ...draft, muscleGroup: e.target.value })}
           aria-label="Muscle group"
         />
+        <div className="form-row">
+          <div className="form-label">Rest between sets (s)</div>
+          <NumberInput
+            value={draft.restSeconds ?? null}
+            onCommit={(v) => setDraft({ ...draft, restSeconds: v ?? undefined })}
+            className="input input-narrow"
+            allowEmpty
+            placeholder="—"
+            aria-label="Rest between sets in seconds"
+          />
+        </div>
         <input
           className="input"
           placeholder="Cue (optional)"

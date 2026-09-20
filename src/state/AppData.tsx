@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { Backup, Exercise, ID, Routine, Session, Settings } from '../db/schema';
-import { DEFAULT_SETTINGS } from '../db/schema';
+import { DEFAULT_SETTINGS, tidyEntries } from '../db/schema';
 import { buildPlan, TRAINING_PLAN } from '../db/plan';
 import * as store from '../db/store';
 
@@ -93,8 +93,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setExercises((prev) => prev.filter((e) => e.id !== id));
     setRoutines((prev) => {
       const next = prev.map((r) =>
-        r.exerciseIds.includes(id)
-          ? { ...r, exerciseIds: r.exerciseIds.filter((x) => x !== id) }
+        r.entries.some((e) => e.exerciseId === id)
+          ? { ...r, entries: tidyEntries(r.entries.filter((e) => e.exerciseId !== id)) }
           : r,
       );
       next.forEach((r, i) => {

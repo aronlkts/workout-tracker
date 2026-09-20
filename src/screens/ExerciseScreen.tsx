@@ -36,7 +36,7 @@ export function ExerciseScreen() {
       caption: bodyweight ? String(p.topSet!.reps) : fmtWeight(p.topSet!.weight),
     }));
 
-  const routine = routines.find((r) => r.exerciseIds.includes(exerciseId));
+  const routine = routines.find((r) => r.entries.some((e) => e.exerciseId === exerciseId));
 
   if (!exercise) {
     return (

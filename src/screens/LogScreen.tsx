@@ -6,7 +6,7 @@ import { progressionTip, suggestSets } from '../lib/progression';
 import { buildSession } from '../lib/session';
 import { completedSets, summarise } from '../lib/stats';
 import { formatLong, weekNumber } from '../lib/dates';
-import { fmtWeight } from '../lib/format';
+import { fmtWeight, restLabel } from '../lib/format';
 import { Icon } from '../components/Icon';
 import { SetCard } from '../components/SetCard';
 import { Sheet } from '../components/Sheet';
@@ -47,7 +47,7 @@ function StartView() {
     const session = buildSession(
       routine,
       routine?.name ?? 'Freestyle',
-      routine?.exerciseIds ?? [],
+      routine?.entries.map((e) => e.exerciseId) ?? [],
       exercises,
       sessions,
       settings,
@@ -82,7 +82,7 @@ function StartView() {
                 <div>
                   <div className="row-title">{routine.name}</div>
                   <div className="row-detail">
-                    {routine.exerciseIds.length} exercises ·{' '}
+                    {routine.entries.length} exercises ·{' '}
                     {sessions.some(
                       (s) => s.finishedAt !== null && s.routineId === routine.id,
                     )
@@ -125,6 +125,7 @@ function ActiveLog({
   const {
     sessions,
     exercises,
+    routines,
     settings,
     exerciseById,
     saveSession,
@@ -160,6 +161,24 @@ function ActiveLog({
   );
   const next = session.exercises[idx + 1];
   const nextExercise = next ? exerciseById(next.exerciseId) : undefined;
+
+  // Pairing lives on the routine, matched by exercise so that adding lifts
+  // mid-session or reordering the routine later cannot misalign it.
+  const entries = routines.find((r) => r.id === session.routineId)?.entries ?? [];
+  const at = exercise ? entries.findIndex((e) => e.exerciseId === exercise.id) : -1;
+  const leadsPair = at >= 0 && Boolean(entries[at].supersetWithNext);
+  const followsPair = at > 0 && Boolean(entries[at - 1].supersetWithNext);
+  const partnerId = leadsPair
+    ? entries[at + 1]?.exerciseId
+    : followsPair
+      ? entries[at - 1].exerciseId
+      : undefined;
+  const partner = partnerId ? exerciseById(partnerId) : undefined;
+
+  const jumpTo = (exerciseId: ID) => {
+    const target = session.exercises.findIndex((e) => e.exerciseId === exerciseId);
+    if (target >= 0) setIndex(target);
+  };
 
   const update = (mutate: (sets: SetLog[]) => SetLog[]) => {
     void saveSession({
@@ -266,6 +285,9 @@ function ActiveLog({
                       {settings.unit}
                     </span>
                   )}
+                  {!leadsPair && exercise.restSeconds ? (
+                    <span className="chip chip-mono">{restLabel(exercise.restSeconds)}</span>
+                  ) : null}
                 </div>
               </div>
               <Link
@@ -278,6 +300,21 @@ function ActiveLog({
                 History
               </Link>
             </div>
+
+            {partner && (
+              <div className="pair-bar">
+                <Icon name="link" size={13} color="var(--accent)" />
+                <span>
+                  {leadsPair ? 'Superset — no rest, straight into ' : 'Second half of the superset with '}
+                  <button type="button" className="pair-jump" onClick={() => jumpTo(partner.id)}>
+                    {partner.name}
+                  </button>
+                  {followsPair && exercise.restSeconds
+                    ? `, then ${restLabel(exercise.restSeconds).toLowerCase()}`
+                    : ''}
+                </span>
+              </div>
+            )}
 
             {exercise.cue && (
               <div className="cue">
