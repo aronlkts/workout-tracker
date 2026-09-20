@@ -8,6 +8,7 @@ import { plural } from '../lib/format';
 import { Icon } from '../components/Icon';
 import { Sheet } from '../components/Sheet';
 import { NumberInput } from '../components/NumberInput';
+import { ExercisePicker } from '../components/ExercisePicker';
 
 export function ProfileScreen() {
   const {
@@ -309,6 +310,9 @@ export function ProfileScreen() {
         <RoutineSheet
           routine={editingRoutine}
           exercises={exercises}
+          defaultIncrement={settings.defaultIncrement}
+          unit={settings.unit}
+          onCreateExercise={(exercise) => void saveExercise(exercise)}
           onClose={() => setEditingRoutine(null)}
           onSave={(r) => {
             void saveRoutine(r);
@@ -344,12 +348,18 @@ export function ProfileScreen() {
 function RoutineSheet({
   routine,
   exercises,
+  defaultIncrement,
+  unit,
+  onCreateExercise,
   onClose,
   onSave,
   onDelete,
 }: {
   routine: Routine;
   exercises: Exercise[];
+  defaultIncrement: number;
+  unit: string;
+  onCreateExercise: (exercise: Exercise) => void;
   onClose: () => void;
   onSave: (routine: Routine) => void;
   onDelete: (id: string) => void;
@@ -358,7 +368,6 @@ function RoutineSheet({
   const chosen = draft.exerciseIds
     .map((id) => exercises.find((e) => e.id === id))
     .filter((e): e is Exercise => Boolean(e));
-  const rest = exercises.filter((e) => !draft.exerciseIds.includes(e.id));
 
   const move = (index: number, delta: number) => {
     const next = draft.exerciseIds.slice();
@@ -426,24 +435,17 @@ function RoutineSheet({
       <div className="section-title gap-20" style={{ marginBottom: 8 }}>
         Add
       </div>
-      <div className="stack-sm">
-        {rest.map((exercise) => (
-          <button
-            key={exercise.id}
-            type="button"
-            className="row"
-            onClick={() =>
-              setDraft({ ...draft, exerciseIds: [...draft.exerciseIds, exercise.id] })
-            }
-          >
-            <div>
-              <div className="row-title">{exercise.name}</div>
-              <div className="row-detail">{exercise.muscleGroup}</div>
-            </div>
-            <Icon name="plus" size={14} color="var(--accent)" />
-          </button>
-        ))}
-      </div>
+      <ExercisePicker
+        exercises={exercises}
+        excludeIds={draft.exerciseIds}
+        defaultIncrement={defaultIncrement}
+        unit={unit}
+        onPick={(id) => setDraft({ ...draft, exerciseIds: [...draft.exerciseIds, id] })}
+        onCreate={(exercise) => {
+          onCreateExercise(exercise);
+          setDraft({ ...draft, exerciseIds: [...draft.exerciseIds, exercise.id] });
+        }}
+      />
 
       <button
         type="button"

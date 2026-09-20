@@ -821,3 +821,50 @@ input[type='number'] {
   width: 156px;
   text-align: left;
 }
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-input);
+  border-radius: 10px;
+  padding: 0 10px;
+  margin-bottom: 10px;
+}
+
+.search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 16px;
+  padding: 10px 0;
+  appearance: none;
+}
+
+.search-input:focus {
+  outline: none;
+}
+
+.search-input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.search-input::placeholder {
+  color: var(--text-dim);
+}
+
+.search-clear {
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}

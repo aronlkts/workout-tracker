@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import type { ID, Session, SetLog } from '../db/schema';
+import type { Exercise, ID, Session, SetLog } from '../db/schema';
 import { useAppData } from '../state/AppData';
 import { progressionTip, suggestSets } from '../lib/progression';
 import { buildSession } from '../lib/session';
@@ -10,6 +10,7 @@ import { fmtWeight } from '../lib/format';
 import { Icon } from '../components/Icon';
 import { SetCard } from '../components/SetCard';
 import { Sheet } from '../components/Sheet';
+import { ExercisePicker } from '../components/ExercisePicker';
 
 export function LogScreen() {
   const { ready, activeSession, sessions } = useAppData();
@@ -127,6 +128,7 @@ function ActiveLog({
     settings,
     exerciseById,
     saveSession,
+    saveExercise,
     deleteSession,
   } = useAppData();
   const navigate = useNavigate();
@@ -187,9 +189,7 @@ function ActiveLog({
 
   const removeSet = () => update((sets) => (sets.length > 1 ? sets.slice(0, -1) : sets));
 
-  const addExercise = (exerciseId: ID) => {
-    const added = exercises.find((e) => e.id === exerciseId);
-    if (!added) return;
+  const addExercise = (added: Exercise) => {
     const sets = suggestSets(added, sessions, settings, session.id).map((s) => ({
       weight: s.weight,
       reps: s.reps,
@@ -198,7 +198,7 @@ function ActiveLog({
     }));
     void saveSession({
       ...session,
-      exercises: [...session.exercises, { exerciseId, sets }],
+      exercises: [...session.exercises, { exerciseId: added.id, sets }],
     });
     setIndex(session.exercises.length);
     setPicker(false);
@@ -380,26 +380,20 @@ function ActiveLog({
 
       {picker && (
         <Sheet title="Add exercise" onClose={() => setPicker(false)}>
-          <div className="stack">
-            {exercises
-              .filter(
-                (e) => !e.archived && !session.exercises.some((x) => x.exerciseId === e.id),
-              )
-              .map((e) => (
-                <button
-                  key={e.id}
-                  type="button"
-                  className="row"
-                  onClick={() => addExercise(e.id)}
-                >
-                  <div>
-                    <div className="row-title">{e.name}</div>
-                    <div className="row-detail">{e.muscleGroup}</div>
-                  </div>
-                  <Icon name="plus" size={14} color="var(--accent)" />
-                </button>
-              ))}
-          </div>
+          <ExercisePicker
+            exercises={exercises}
+            excludeIds={session.exercises.map((x) => x.exerciseId)}
+            defaultIncrement={settings.defaultIncrement}
+            unit={settings.unit}
+            onPick={(id) => {
+              const found = exercises.find((e) => e.id === id);
+              if (found) addExercise(found);
+            }}
+            onCreate={(exercise) => {
+              void saveExercise(exercise);
+              addExercise(exercise);
+            }}
+          />
         </Sheet>
       )}
     </>
